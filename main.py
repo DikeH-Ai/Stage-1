@@ -2,9 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from math import sqrt
-import httpx
 import requests
-from functools import lru_cache
 
 app = FastAPI()
 
@@ -63,13 +61,12 @@ def digit_sum(number: int):
     return sum(int(digit) for digit in str(abs(number)))
 
 
-@lru_cache(maxsize=100)
-async def get_funfact(number: int):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"http://numbersapi.com/{number}?json")
-        if response.status_code == 200:
-            return response.json().get("text", "")
-        return f"No fun fact available for {number}"
+def get_funfact(number: int):
+    response = requests.get(f"http://numbersapi.com/{number}?json")
+    if response.status_code == 200:
+        fact = response.json().get("text", "")
+        return fact
+    return f"No fun fact available for {number}"
 
 
 @app.get("/api/classify-number")
@@ -88,7 +85,7 @@ async def numclass(number):
     is_prime = isprime(number)
     perfect = is_perfect(number)
     proper = properties(number)
-    fun_fact = await get_funfact(number)
+    fun_fact = get_funfact(number)
 
     return {
         "number": number,
