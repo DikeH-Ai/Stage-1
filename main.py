@@ -2,7 +2,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from math import sqrt
+import httpx
 import requests
+from functools import lru_cache
 
 app = FastAPI()
 
@@ -44,9 +46,10 @@ def is_perfect(number: int):  # checks perfect status
 
 def properties(number: int):
     properties = []
-    str_num = str(number)
+    str_num = str(abs(number))
     num_digits = len(str_num)
-    armstrong_sum = sum(int(digit) ** num_digits for digit in str_num)
+    armstrong_sum = sum(
+        int(digit) ** num_digits for digit in str_num)
 
     if armstrong_sum == number:
         properties.append("armstrong")
@@ -57,15 +60,16 @@ def properties(number: int):
 
 
 def digit_sum(number: int):
-    return sum(int(digit) for digit in str(number))
+    return sum(int(digit) for digit in str(abs(number)))
 
 
-def get_funfact(number: int):
-    response = requests.get(f"http://numbersapi.com/{number}?json")
-    if response.status_code == 200:
-        fact = response.json().get("text", "")
-        return fact
-    return f"No fun fact available for {number}"
+@lru_cache(maxsize=100)
+async def get_funfact(number: int):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"http://numbersapi.com/{number}?json")
+        if response.status_code == 200:
+            return response.json().get("text", "")
+        return f"No fun fact available for {number}"
 
 
 @app.get("/api/classify-number")
@@ -84,7 +88,7 @@ async def numclass(number):
     is_prime = isprime(number)
     perfect = is_perfect(number)
     proper = properties(number)
-    fun_fact = get_funfact(number)
+    fun_fact = await get_funfact(number)
 
     return {
         "number": number,
