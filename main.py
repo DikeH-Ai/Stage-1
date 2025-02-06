@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from math import sqrt
-import httpx
+import requests
 
 app = FastAPI()
 
@@ -19,7 +19,9 @@ app.add_middleware(
 def isprime(number: int):  # checks prime status
     if number < 2:
         return False
-    for i in range(2, int(sqrt(number)) + 1):
+    if number % 2 == 0:
+        return number == 2
+    for i in range(3, int(sqrt(number)) + 1, 2):
         if number % i == 0:
             return False
     return True
@@ -29,54 +31,40 @@ def is_perfect(number: int):  # checks perfect status
     if number < 6:
         return False
 
-    divisors_sum = 0
+    divisors_sum = 1
+    sqrt_num = int(sqrt(number))
 
-    for i in range(1, (number // 2) + 1):
+    for i in range(2, sqrt_num + 1):
         if number % i == 0:
             divisors_sum += i
-    if divisors_sum == number:
-        return True
-    return False
+            if i != number // i:
+                divisors_sum += number // i
+    return divisors_sum == number
 
 
-def properties(number: int):  # returns number properties
+def properties(number: int):
     properties = []
-
     str_num = str(number)
-    num_digits = len(str_num)  # Number of digits in the number
-    armstrong_sum = 0
-
-    for i in str_num:
-        try:
-            # Sum of digits raised to the power of number of digits
-            armstrong_sum += int(i) ** num_digits
-        except ValueError:
-            pass
+    num_digits = len(str_num)
+    armstrong_sum = sum(int(digit) ** num_digits for digit in str_num)
 
     if armstrong_sum == number:
         properties.append("armstrong")
 
-    if number % 2 == 0:
-        properties.append("even")
-    else:
-        properties.append("odd")
+    properties.append("even" if number % 2 == 0 else "odd")
 
     return properties
 
 
 def digit_sum(number: int):
-    return sum(int(digit) for digit in str(number) if digit is int)
+    return sum(int(digit) for digit in str(number))
 
 
-async def get_funfact(number: int):
-    url = f"http://numbersapi.com/{number}?json"
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, timeout=3)
-            if response.status_code == 200:
-                return response.json().get("text", "")
-        except httpx.RequestError:
-            return f"No fun fact available for {number}"
+def get_funfact(number: int):
+    response = requests.get(f"http://numbersapi.com/{number}?json")
+    if response.status_code == 200:
+        fact = response.json().get("text", "")
+        return fact
     return f"No fun fact available for {number}"
 
 
@@ -96,7 +84,7 @@ async def numclass(number):
     is_prime = isprime(number)
     perfect = is_perfect(number)
     proper = properties(number)
-    fun_fact = await get_funfact(number)
+    fun_fact = get_funfact(number)
 
     return {
         "number": number,
