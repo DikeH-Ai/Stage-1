@@ -82,8 +82,8 @@ async def numclass(number):
         return JSONResponse(
             status_code=400,
             content={
+                "error": True,
                 "number": "alphabet",
-                "error": True
             }
         )
     is_prime = isprime(number)
